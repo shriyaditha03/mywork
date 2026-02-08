@@ -20,8 +20,8 @@ const Dashboard = () => {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <div className="ocean-gradient p-4 sm:p-6 pb-16 rounded-b-3xl">
-        <div className="flex items-center justify-between mb-6">
+      <div className="ocean-gradient p-4 sm:p-6 pb-12 rounded-b-3xl">
+        <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <img src={logo} alt="Logo" className="w-8 h-8 rounded-lg" />
             <span className="text-primary-foreground font-semibold">Aqua Nexus</span>
@@ -35,19 +35,19 @@ const Dashboard = () => {
             <LogOut className="w-4 h-4 mr-1" /> Logout
           </Button>
         </div>
-        <div className="flex items-center gap-4">
-          <div className="w-16 h-16 rounded-full bg-primary-foreground/20 flex items-center justify-center">
-            <User className="w-8 h-8 text-primary-foreground" />
+        <div className="flex items-center gap-3">
+          <div className="w-14 h-14 rounded-full bg-primary-foreground/20 flex items-center justify-center">
+            <User className="w-7 h-7 text-primary-foreground" />
           </div>
           <div className="text-primary-foreground">
-            <h1 className="text-xl font-bold">{user.name}</h1>
+            <h1 className="text-lg font-bold">{user.name}</h1>
             <p className="text-sm opacity-80">{user.role}</p>
           </div>
         </div>
       </div>
 
       {/* Content */}
-      <div className="px-3 sm:px-4 -mt-8 pb-8 space-y-4">
+      <div className="px-3 sm:px-4 -mt-6 pb-8 space-y-4">
         {/* Profile Card */}
         <div className="glass-card rounded-2xl p-5">
           <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4">Profile Details</h2>
