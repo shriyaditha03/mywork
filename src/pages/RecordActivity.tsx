@@ -5,7 +5,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, Save, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, Save } from 'lucide-react';
+import RatingScale from '@/components/RatingScale';
 import { toast } from 'sonner';
 
 const TANKS = ['T1', 'T2', 'T3', 'T4'];
@@ -37,6 +38,26 @@ const RecordActivity = () => {
   const [treatmentType, setTreatmentType] = useState('');
   const [treatmentDosage, setTreatmentDosage] = useState('');
   const [treatmentUnit, setTreatmentUnit] = useState('ml');
+
+  // Animal quality fields
+  const ANIMAL_RATING_FIELDS = [
+    { key: 'swimmingActivity', label: 'Swimming Activity' },
+    { key: 'homogenousStage', label: 'Homogenous Stage', required: true },
+    { key: 'hepatopancreas', label: 'Hepatopancreas' },
+    { key: 'intestinalContent', label: 'Intestinal Content' },
+    { key: 'fecalStrings', label: 'Fecal Strings' },
+    { key: 'necrosis', label: 'Necrosis' },
+    { key: 'deformities', label: 'Deformities' },
+    { key: 'fouling', label: 'Fouling', required: true },
+    { key: 'epibionts', label: 'Epibionts' },
+    { key: 'muscleGutRatio', label: 'Muscle Gut Ratio' },
+    { key: 'size', label: 'Size', required: true },
+    { key: 'nextStageConversion', label: 'Time taken for Next Stage Conversion' },
+  ];
+  const [animalSize, setAnimalSize] = useState('');
+  const [animalRatings, setAnimalRatings] = useState<Record<string, number>>({});
+  const [diseaseSymptoms, setDiseaseSymptoms] = useState('');
+  const [otherAnimal, setOtherAnimal] = useState('');
 
   // Water quality fields
   const [waterData, setWaterData] = useState<Record<string, string>>({});
@@ -216,7 +237,40 @@ const RecordActivity = () => {
           </div>
         )}
 
-        {(activity === 'Animal Quality' || activity === 'Stocking' || activity === 'Observation') && (
+        {activity === 'Animal Quality' && (
+          <div className="glass-card rounded-2xl p-4 space-y-5 animate-fade-in-up">
+            <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Animal Quality</h2>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Animal Size and Avg. Wt. *</Label>
+              <Input value={animalSize} onChange={e => setAnimalSize(e.target.value)} placeholder="Enter size / avg weight" className="h-11" />
+            </div>
+            <div className="space-y-4">
+              {ANIMAL_RATING_FIELDS.map(f => (
+                <RatingScale
+                  key={f.key}
+                  label={f.label}
+                  required={f.required}
+                  value={animalRatings[f.key] || 0}
+                  onChange={val => setAnimalRatings(prev => ({ ...prev, [f.key]: val }))}
+                />
+              ))}
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Disease Symptoms</Label>
+              <Textarea value={diseaseSymptoms} onChange={e => setDiseaseSymptoms(e.target.value)} placeholder="Describe any disease symptoms..." rows={3} />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Other</Label>
+              <Input value={otherAnimal} onChange={e => setOtherAnimal(e.target.value)} placeholder="Any other observations" className="h-11" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Comments</Label>
+              <Textarea value={comments} onChange={e => setComments(e.target.value)} placeholder="Add notes..." rows={3} />
+            </div>
+          </div>
+        )}
+
+        {(activity === 'Stocking' || activity === 'Observation') && (
           <div className="glass-card rounded-2xl p-4 space-y-4 animate-fade-in-up">
             <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">{activity} Details</h2>
             <div className="space-y-1.5">
