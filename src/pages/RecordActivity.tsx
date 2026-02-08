@@ -7,6 +7,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowLeft, Save } from 'lucide-react';
 import RatingScale from '@/components/RatingScale';
+import StockingForm from '@/components/StockingForm';
+import ObservationForm from '@/components/ObservationForm';
 import { toast } from 'sonner';
 
 const TANKS = ['T1', 'T2', 'T3', 'T4'];
@@ -270,14 +272,12 @@ const RecordActivity = () => {
           </div>
         )}
 
-        {(activity === 'Stocking' || activity === 'Observation') && (
-          <div className="glass-card rounded-2xl p-4 space-y-4 animate-fade-in-up">
-            <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">{activity} Details</h2>
-            <div className="space-y-1.5">
-              <Label className="text-xs">Comments / Observations</Label>
-              <Textarea value={comments} onChange={e => setComments(e.target.value)} placeholder={`Enter ${activity.toLowerCase()} details...`} rows={5} />
-            </div>
-          </div>
+        {activity === 'Stocking' && (
+          <StockingForm comments={comments} onCommentsChange={setComments} />
+        )}
+
+        {activity === 'Observation' && (
+          <ObservationForm comments={comments} onCommentsChange={setComments} />
         )}
 
         {/* Save */}
