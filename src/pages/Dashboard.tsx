@@ -33,7 +33,9 @@ const Dashboard = () => {
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <img src={logo} alt="Logo" className="w-8 h-8 rounded-lg" />
-            <span className="text-primary-foreground font-semibold">Aqua Nexus</span>
+            <span className="text-primary-foreground font-semibold">
+              <span className="text-orange-300">Shrimp</span><span className="text-rose-300">it</span> <span className="text-pink-200">Shrimp</span>
+            </span>
           </div>
           <Button
             variant="ghost"

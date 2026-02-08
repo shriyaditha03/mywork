@@ -28,10 +28,10 @@ const LoginPage = () => {
     <div className="min-h-screen ocean-gradient flex items-center justify-center p-4">
       <div className="w-full max-w-md bg-card rounded-2xl p-6 sm:p-8 shadow-2xl">
         <div className="flex flex-col items-center mb-8">
-          <img src={logo} alt="Aqua Nexus" className="w-20 h-20 rounded-2xl mb-4" />
+          <img src={logo} alt="Shrimpit Shrimp" className="w-20 h-20 rounded-2xl mb-4" />
           <h1 className="text-2xl font-bold text-foreground">Welcome Back</h1>
           <p className="text-muted-foreground text-sm flex items-center gap-1">
-            <Waves className="w-4 h-4" /> Aqua Nexus
+            <Waves className="w-4 h-4" /> <span className="text-orange-500">Shrimp</span><span className="text-rose-500">it</span> <span className="text-pink-400">Shrimp</span>
           </p>
         </div>
 
