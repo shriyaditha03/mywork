@@ -31,7 +31,7 @@ const LoginPage = () => {
           <img src={logo} alt="Shrimpit Shrimp" className="w-20 h-20 rounded-2xl mb-4" />
           <h1 className="text-2xl font-bold text-foreground">Welcome Back</h1>
           <p className="text-muted-foreground text-sm flex items-center gap-1">
-            <Waves className="w-4 h-4" /> <span className="text-orange-500">Shrimp</span><span className="text-rose-500">it</span> <span className="text-pink-400">Shrimp</span>
+            <Waves className="w-4 h-4" /> <span className="text-orange-500">Shrimp</span><span className="text-rose-500">it</span>
           </p>
         </div>
 
