@@ -25,8 +25,8 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="min-h-screen ocean-gradient flex items-end sm:items-center justify-center p-0 sm:p-4">
-      <div className="w-full sm:max-w-md bg-card rounded-t-3xl sm:rounded-2xl p-8 pt-10 shadow-2xl">
+    <div className="min-h-screen ocean-gradient flex items-center justify-center p-4">
+      <div className="w-full max-w-md bg-card rounded-2xl p-6 sm:p-8 shadow-2xl">
         <div className="flex flex-col items-center mb-8">
           <img src={logo} alt="Aqua Nexus" className="w-20 h-20 rounded-2xl mb-4" />
           <h1 className="text-2xl font-bold text-foreground">Welcome Back</h1>
