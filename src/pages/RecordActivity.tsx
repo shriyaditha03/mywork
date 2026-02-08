@@ -78,8 +78,14 @@ const RecordActivity = () => {
       toast.error('Please fill in all required fields');
       return;
     }
-    toast.success('Activity recorded successfully!');
-    setTimeout(() => navigate('/dashboard'), 1000);
+    toast.success('Activity recorded successfully!', {
+      duration: 2000,
+      action: {
+        label: 'Close',
+        onClick: () => navigate('/dashboard'),
+      },
+    });
+    setTimeout(() => navigate('/dashboard'), 2000);
   };
 
   return (
