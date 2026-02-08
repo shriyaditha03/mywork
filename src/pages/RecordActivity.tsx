@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -10,6 +10,7 @@ import RatingScale from '@/components/RatingScale';
 import StockingForm from '@/components/StockingForm';
 import ObservationForm from '@/components/ObservationForm';
 import { toast } from 'sonner';
+import { useActivities } from '@/hooks/useActivities';
 
 const TANKS = ['T1', 'T2', 'T3', 'T4'];
 const ACTIVITIES = ['Feed', 'Treatment', 'Water Quality', 'Animal Quality', 'Stocking', 'Observation'] as const;
@@ -20,8 +21,34 @@ const FEED_UNITS = ['kg', 'g', 'lb'];
 const TREATMENT_TYPES = ['Probiotics', 'Antibiotics', 'Mineral Supplement', 'Disinfectant', 'Vitamin'];
 const TREATMENT_UNITS = ['ml', 'L', 'g', 'kg', 'ppm'];
 
+const ANIMAL_RATING_FIELDS = [
+  { key: 'swimmingActivity', label: 'Swimming Activity' },
+  { key: 'homogenousStage', label: 'Homogenous Stage', required: true },
+  { key: 'hepatopancreas', label: 'Hepatopancreas' },
+  { key: 'intestinalContent', label: 'Intestinal Content' },
+  { key: 'fecalStrings', label: 'Fecal Strings' },
+  { key: 'necrosis', label: 'Necrosis' },
+  { key: 'deformities', label: 'Deformities' },
+  { key: 'fouling', label: 'Fouling', required: true },
+  { key: 'epibionts', label: 'Epibionts' },
+  { key: 'muscleGutRatio', label: 'Muscle Gut Ratio' },
+  { key: 'size', label: 'Size', required: true },
+  { key: 'nextStageConversion', label: 'Time taken for Next Stage Conversion' },
+];
+
+const waterFields = [
+  'Salinity', 'pH', 'Dissolved Oxygen', 'Alkalinity', 'Chlorine Content',
+  'Iron Content', 'Turbidity', 'Temperature', 'Hardness', 'Ammonia',
+  'Nitrate [NO3]', 'Nitrite [NO2]', 'Vibrio Count', 'Yellow Green Bacteria',
+  'Luminescence', 'Other',
+];
+
 const RecordActivity = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const editId = searchParams.get('edit');
+  const { addActivity, updateActivity, getActivity } = useActivities();
+
   const now = new Date();
   const [date, setDate] = useState(now.toISOString().split('T')[0]);
   const [time, setTime] = useState(
@@ -42,20 +69,6 @@ const RecordActivity = () => {
   const [treatmentUnit, setTreatmentUnit] = useState('ml');
 
   // Animal quality fields
-  const ANIMAL_RATING_FIELDS = [
-    { key: 'swimmingActivity', label: 'Swimming Activity' },
-    { key: 'homogenousStage', label: 'Homogenous Stage', required: true },
-    { key: 'hepatopancreas', label: 'Hepatopancreas' },
-    { key: 'intestinalContent', label: 'Intestinal Content' },
-    { key: 'fecalStrings', label: 'Fecal Strings' },
-    { key: 'necrosis', label: 'Necrosis' },
-    { key: 'deformities', label: 'Deformities' },
-    { key: 'fouling', label: 'Fouling', required: true },
-    { key: 'epibionts', label: 'Epibionts' },
-    { key: 'muscleGutRatio', label: 'Muscle Gut Ratio' },
-    { key: 'size', label: 'Size', required: true },
-    { key: 'nextStageConversion', label: 'Time taken for Next Stage Conversion' },
-  ];
   const [animalSize, setAnimalSize] = useState('');
   const [animalRatings, setAnimalRatings] = useState<Record<string, number>>({});
   const [diseaseSymptoms, setDiseaseSymptoms] = useState('');
@@ -66,26 +79,65 @@ const RecordActivity = () => {
 
   const [comments, setComments] = useState('');
 
-  const waterFields = [
-    'Salinity', 'pH', 'Dissolved Oxygen', 'Alkalinity', 'Chlorine Content',
-    'Iron Content', 'Turbidity', 'Temperature', 'Hardness', 'Ammonia',
-    'Nitrate [NO3]', 'Nitrite [NO2]', 'Vibrio Count', 'Yellow Green Bacteria',
-    'Luminescence', 'Other',
-  ];
+  // Load existing activity for editing
+  useEffect(() => {
+    if (!editId) return;
+    const existing = getActivity(editId);
+    if (!existing) return;
+
+    setDate(existing.date);
+    setTime(existing.time);
+    setAmpm(existing.ampm);
+    setTank(existing.tank);
+    setActivity(existing.activity as ActivityType);
+    setComments(existing.comments || '');
+
+    const d = existing.data || {};
+    if (existing.activity === 'Feed') {
+      setFeedType(d.feedType || '');
+      setFeedQty(d.feedQty || '');
+      setFeedUnit(d.feedUnit || 'kg');
+    } else if (existing.activity === 'Treatment') {
+      setTreatmentType(d.treatmentType || '');
+      setTreatmentDosage(d.treatmentDosage || '');
+      setTreatmentUnit(d.treatmentUnit || 'ml');
+    } else if (existing.activity === 'Water Quality') {
+      setWaterData(d.waterData || {});
+    } else if (existing.activity === 'Animal Quality') {
+      setAnimalSize(d.animalSize || '');
+      setAnimalRatings(d.animalRatings || {});
+      setDiseaseSymptoms(d.diseaseSymptoms || '');
+      setOtherAnimal(d.otherAnimal || '');
+    }
+  }, [editId]);
+
+  const buildData = (): Record<string, any> => {
+    switch (activity) {
+      case 'Feed': return { feedType, feedQty, feedUnit };
+      case 'Treatment': return { treatmentType, treatmentDosage, treatmentUnit };
+      case 'Water Quality': return { waterData };
+      case 'Animal Quality': return { animalSize, animalRatings, diseaseSymptoms, otherAnimal };
+      default: return {};
+    }
+  };
 
   const handleSave = () => {
     if (!tank || !activity) {
       toast.error('Please fill in all required fields');
       return;
     }
-    toast.success('Activity recorded successfully!', {
-      duration: 2000,
-      action: {
-        label: 'Close',
-        onClick: () => navigate('/dashboard'),
-      },
-    });
-    setTimeout(() => navigate('/dashboard'), 2000);
+
+    const record = { date, time, ampm, tank, activity, comments, data: buildData() };
+
+    if (editId) {
+      updateActivity(editId, record);
+      toast.success('Activity updated successfully!', { duration: 2000 });
+    } else {
+      addActivity(record);
+      toast.success('Activity recorded successfully!', { duration: 2000 });
+    }
+
+    setTimeout(() => navigate('/dashboard'), 1500);
   };
 
   return (
@@ -101,7 +153,9 @@ const RecordActivity = () => {
           >
             <ArrowLeft className="w-5 h-5" />
           </Button>
-          <h1 className="text-lg font-bold text-primary-foreground">Record Activity</h1>
+          <h1 className="text-lg font-bold text-primary-foreground">
+            {editId ? 'Edit Activity' : 'Record Activity'}
+          </h1>
         </div>
       </div>
 
@@ -289,7 +343,7 @@ const RecordActivity = () => {
         {/* Save */}
         {activity && (
           <Button onClick={handleSave} className="w-full h-14 text-base font-semibold rounded-2xl gap-2 animate-fade-in-up">
-            <Save className="w-5 h-5" /> Save Activity
+            <Save className="w-5 h-5" /> {editId ? 'Update Activity' : 'Save Activity'}
           </Button>
         )}
       </div>
