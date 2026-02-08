@@ -13,10 +13,12 @@ const SplashScreen = () => {
   return (
     <div className="min-h-screen ocean-gradient flex flex-col items-center justify-center text-primary-foreground">
       <div className="animate-pulse-glow rounded-full p-1 mb-8">
-        <img src={logo} alt="Aqua Nexus" className="w-32 h-32 rounded-full" />
+        <img src={logo} alt="Shrimpit Shrimp" className="w-32 h-32 rounded-full" />
       </div>
       <h1 className="text-4xl font-bold tracking-tight mb-2 animate-fade-in-up">
-        Aqua Nexus
+        <span className="text-orange-400">Shrimp</span>
+        <span className="text-rose-400">it</span>{' '}
+        <span className="text-pink-300">Shrimp</span>
       </h1>
       <p className="text-lg opacity-80 animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
         Smart Shrimp Farm Management
