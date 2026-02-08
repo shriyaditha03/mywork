@@ -1,12 +1,16 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { LogOut, User, Mail, Phone, MapPin, Building2, ClipboardList, Waves } from 'lucide-react';
+import { LogOut, User, Mail, Phone, MapPin, Building2, ClipboardList } from 'lucide-react';
+import { useActivities } from '@/hooks/useActivities';
+import ActivityList from '@/components/ActivityList';
+import { toast } from 'sonner';
 import logo from '@/assets/aqua-nexus-logo.png';
 
 const Dashboard = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const { activities, deleteActivity } = useActivities();
 
   if (!user) return null;
 
@@ -16,6 +20,11 @@ const Dashboard = () => {
     { icon: Building2, label: 'Farm', value: user.farm },
     { icon: MapPin, label: 'Location', value: user.location },
   ];
+
+  const handleDelete = (id: string) => {
+    deleteActivity(id);
+    toast.success('Activity deleted');
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -75,24 +84,20 @@ const Dashboard = () => {
           Record Activity
         </Button>
 
-        <div className="glass-card rounded-2xl p-5">
-          <div className="flex items-center gap-2 mb-3">
-            <Waves className="w-4 h-4 text-accent" />
-            <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Farm Stats</h2>
+        {/* Activity History */}
+        <div className="glass-card rounded-2xl p-4">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <ClipboardList className="w-4 h-4 text-accent" />
+              <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Recorded Activities</h2>
+            </div>
+            {activities.length > 0 && (
+              <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">
+                {activities.length}
+              </span>
+            )}
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            {[
-              { label: 'Active Tanks', value: '4' },
-              { label: 'Total Stock', value: '2.5M' },
-              { label: 'Feed Today', value: '120 kg' },
-              { label: 'Days of Culture', value: '45' },
-            ].map(stat => (
-              <div key={stat.label} className="bg-secondary rounded-xl p-3 text-center">
-                <p className="text-xl font-bold text-foreground">{stat.value}</p>
-                <p className="text-xs text-muted-foreground">{stat.label}</p>
-              </div>
-            ))}
-          </div>
+          <ActivityList activities={activities} onDelete={handleDelete} />
         </div>
       </div>
     </div>
