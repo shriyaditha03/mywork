@@ -44,8 +44,8 @@ const ObservationForm = ({ comments, onCommentsChange }: ObservationFormProps) =
       {/* Sampling Section */}
       <div className="space-y-3">
         <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Sampling</h3>
-        <div className="overflow-x-auto">
-          <table className="w-full text-xs">
+        <div className="overflow-x-auto -mx-1">
+          <table className="w-full text-xs min-w-0">
             <thead>
               <tr className="border-b border-border">
                 <th className="text-left py-2 pr-2 font-medium text-muted-foreground"></th>

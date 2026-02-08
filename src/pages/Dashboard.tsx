@@ -20,7 +20,7 @@ const Dashboard = () => {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <div className="ocean-gradient p-6 pb-16 rounded-b-3xl">
+      <div className="ocean-gradient p-4 sm:p-6 pb-16 rounded-b-3xl">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-2">
             <img src={logo} alt="Logo" className="w-8 h-8 rounded-lg" />
@@ -47,7 +47,7 @@ const Dashboard = () => {
       </div>
 
       {/* Content */}
-      <div className="px-4 -mt-8 pb-8 space-y-4">
+      <div className="px-3 sm:px-4 -mt-8 pb-8 space-y-4">
         {/* Profile Card */}
         <div className="glass-card rounded-2xl p-5">
           <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4">Profile Details</h2>

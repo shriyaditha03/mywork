@@ -99,7 +99,7 @@ const RecordActivity = () => {
         </div>
       </div>
 
-      <div className="p-4 pb-8 space-y-4 max-w-lg mx-auto">
+      <div className="p-3 sm:p-4 pb-8 space-y-4 max-w-lg mx-auto">
         {/* Date / Time */}
         <div className="glass-card rounded-2xl p-4 space-y-4">
           <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Date & Time</h2>
