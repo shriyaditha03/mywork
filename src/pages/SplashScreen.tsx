@@ -17,8 +17,7 @@ const SplashScreen = () => {
       </div>
       <h1 className="text-4xl font-bold tracking-tight mb-2 animate-fade-in-up">
         <span className="text-orange-400">Shrimp</span>
-        <span className="text-rose-400">it</span>{' '}
-        <span className="text-pink-300">Shrimp</span>
+        <span className="text-rose-300">it</span>
       </h1>
       <p className="text-lg opacity-80 animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
         Smart Shrimp Farm Management
