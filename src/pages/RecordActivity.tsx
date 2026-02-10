@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, useParams, Link } from 'react-router-dom';
+import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, Save } from 'lucide-react';
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ArrowLeft, Save, Loader2 } from 'lucide-react';
 import RatingScale from '@/components/RatingScale';
 import StockingForm from '@/components/StockingForm';
 import ObservationForm from '@/components/ObservationForm';
@@ -45,9 +47,15 @@ const waterFields = [
 
 const RecordActivity = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [searchParams] = useSearchParams();
+  const { type } = useParams();
   const editId = searchParams.get('edit');
-  const { addActivity, updateActivity, getActivity } = useActivities();
+  const { addActivity } = useActivities();
+
+  const [loading, setLoading] = useState(false);
+  const [availableTanks, setAvailableTanks] = useState<any[]>([]);
+  const [selectedFarmId, setSelectedFarmId] = useState<string>('');
 
   const now = new Date();
   const [date, setDate] = useState(now.toISOString().split('T')[0]);
@@ -55,8 +63,81 @@ const RecordActivity = () => {
     `${String(now.getHours() % 12 || 12).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
   );
   const [ampm, setAmpm] = useState<'AM' | 'PM'>(now.getHours() >= 12 ? 'PM' : 'AM');
-  const [tank, setTank] = useState('');
+  const [tankId, setTankId] = useState('');
   const [activity, setActivity] = useState<ActivityType | ''>('');
+
+  useEffect(() => {
+    fetchTanks();
+  }, [user]);
+
+  const fetchTanks = async () => {
+    if (!user) return;
+    setLoading(true);
+    try {
+      // Fetch tanks from farms the user has access to
+      const { data: accessData, error: accessError } = await supabase
+        .from('farm_access')
+        .select(`
+          farm_id,
+          farms (
+            name,
+            sections (
+              id,
+              name,
+              tanks (id, name)
+            )
+          )
+        `)
+        .eq('user_id', user.id);
+
+      if (accessError) throw accessError;
+
+      // Group tanks by section to avoid flat list & duplicates
+      const sectionsMap = new Map<string, any>();
+
+      accessData?.forEach((access: any) => {
+        if (access.farms?.sections) {
+          access.farms.sections.forEach((section: any) => {
+            if (section.tanks && section.tanks.length > 0) {
+              if (!sectionsMap.has(section.id)) {
+                sectionsMap.set(section.id, {
+                  id: section.id,
+                  name: section.name,
+                  farm_name: access.farms.name,
+                  farm_id: access.farm_id,
+                  tanks: section.tanks
+                });
+              }
+            }
+          });
+        }
+      });
+
+      setAvailableTanks(Array.from(sectionsMap.values()));
+    } catch (err) {
+      console.error('Error fetching tanks:', err);
+      toast.error('Failed to load tanks');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Auto-select activity from URL
+  useEffect(() => {
+    if (type) {
+      const map: Record<string, ActivityType> = {
+        'feed': 'Feed',
+        'treatment': 'Treatment',
+        'water': 'Water Quality',
+        'animal': 'Animal Quality',
+        'stocking': 'Stocking',
+        'observation': 'Observation'
+      };
+      if (map[type.toLowerCase()]) {
+        setActivity(map[type.toLowerCase()]);
+      }
+    }
+  }, [type]);
 
   // Feed fields
   const [feedType, setFeedType] = useState('');
@@ -77,67 +158,65 @@ const RecordActivity = () => {
   // Water quality fields
   const [waterData, setWaterData] = useState<Record<string, string>>({});
 
+  // Stocking & Observation extra data
+  const [stockingData, setStockingData] = useState<any>({});
+  const [observationData, setObservationData] = useState<any>({});
+
   const [comments, setComments] = useState('');
 
-  // Load existing activity for editing
-  useEffect(() => {
-    if (!editId) return;
-    const existing = getActivity(editId);
-    if (!existing) return;
-
-    setDate(existing.date);
-    setTime(existing.time);
-    setAmpm(existing.ampm);
-    setTank(existing.tank);
-    setActivity(existing.activity as ActivityType);
-    setComments(existing.comments || '');
-
-    const d = existing.data || {};
-    if (existing.activity === 'Feed') {
-      setFeedType(d.feedType || '');
-      setFeedQty(d.feedQty || '');
-      setFeedUnit(d.feedUnit || 'kg');
-    } else if (existing.activity === 'Treatment') {
-      setTreatmentType(d.treatmentType || '');
-      setTreatmentDosage(d.treatmentDosage || '');
-      setTreatmentUnit(d.treatmentUnit || 'ml');
-    } else if (existing.activity === 'Water Quality') {
-      setWaterData(d.waterData || {});
-    } else if (existing.activity === 'Animal Quality') {
-      setAnimalSize(d.animalSize || '');
-      setAnimalRatings(d.animalRatings || {});
-      setDiseaseSymptoms(d.diseaseSymptoms || '');
-      setOtherAnimal(d.otherAnimal || '');
-    }
-  }, [editId]);
-
   const buildData = (): Record<string, any> => {
+    const baseData = { date, time, ampm, comments };
     switch (activity) {
-      case 'Feed': return { feedType, feedQty, feedUnit };
-      case 'Treatment': return { treatmentType, treatmentDosage, treatmentUnit };
-      case 'Water Quality': return { waterData };
-      case 'Animal Quality': return { animalSize, animalRatings, diseaseSymptoms, otherAnimal };
-      default: return {};
+      case 'Feed': return { ...baseData, feedType, feedQty, feedUnit };
+      case 'Treatment': return { ...baseData, treatmentType, treatmentDosage, treatmentUnit };
+      case 'Water Quality': return { ...baseData, waterData };
+      case 'Animal Quality': return { ...baseData, animalSize, animalRatings, diseaseSymptoms, otherAnimal };
+      case 'Stocking': return { ...baseData, ...stockingData };
+      case 'Observation': return { ...baseData, ...observationData };
+      default: return baseData;
     }
   };
 
-  const handleSave = () => {
-    if (!tank || !activity) {
+  const handleSave = async () => {
+    if (!tankId || !activity) {
       toast.error('Please fill in all required fields');
       return;
     }
 
-    const record = { date, time, ampm, tank, activity, comments, data: buildData() };
+    let selectedTank: any = null;
+    let selectedSectionId: string = '';
+    let selectedFarmId: string = '';
 
-    if (editId) {
-      updateActivity(editId, record);
-      toast.success('Activity updated successfully!', { duration: 2000 });
-    } else {
-      addActivity(record);
-      toast.success('Activity recorded successfully!', { duration: 2000 });
+    for (const section of availableTanks) {
+      const tank = section.tanks.find((t: any) => t.id === tankId);
+      if (tank) {
+        selectedTank = tank;
+        selectedSectionId = section.id;
+        selectedFarmId = section.farm_id;
+        break;
+      }
     }
 
-    setTimeout(() => navigate('/dashboard'), 1500);
+    if (!selectedTank) return;
+
+    try {
+      setLoading(true);
+      await addActivity({
+        tank_id: tankId,
+        section_id: selectedSectionId,
+        farm_id: selectedFarmId,
+        activity_type: activity,
+        data: buildData()
+      });
+
+      toast.success('Activity recorded successfully!');
+      setTimeout(() => navigate('/dashboard'), 1500);
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.message || "Failed to save activity");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -191,18 +270,33 @@ const RecordActivity = () => {
           <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Tank & Activity</h2>
           <div className="space-y-1.5">
             <Label className="text-xs">Select Tank *</Label>
-            <Select value={tank} onValueChange={setTank}>
+            <Select value={tankId} onValueChange={setTankId}>
               <SelectTrigger className="h-11">
                 <SelectValue placeholder="Choose tank" />
               </SelectTrigger>
               <SelectContent>
-                {TANKS.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                {availableTanks.map(section => (
+                  <SelectGroup key={section.id}>
+                    <SelectLabel className="bg-muted/50 text-xs py-1 px-2 font-bold text-primary">
+                      {section.farm_name} - {section.name}
+                    </SelectLabel>
+                    {section.tanks.map((t: any) => (
+                      <SelectItem key={t.id} value={t.id}>
+                        {t.name}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                ))}
               </SelectContent>
             </Select>
           </div>
           <div className="space-y-1.5">
             <Label className="text-xs">Activity Type *</Label>
-            <Select value={activity} onValueChange={v => setActivity(v as ActivityType)}>
+            <Select
+              value={activity}
+              onValueChange={v => setActivity(v as ActivityType)}
+              disabled={!!type} // Disable if type is passed in URL
+            >
               <SelectTrigger className="h-11">
                 <SelectValue placeholder="Choose activity" />
               </SelectTrigger>
@@ -333,17 +427,27 @@ const RecordActivity = () => {
         )}
 
         {activity === 'Stocking' && (
-          <StockingForm comments={comments} onCommentsChange={setComments} />
+          <StockingForm
+            data={stockingData}
+            onDataChange={setStockingData}
+            comments={comments}
+            onCommentsChange={setComments}
+          />
         )}
 
         {activity === 'Observation' && (
-          <ObservationForm comments={comments} onCommentsChange={setComments} />
+          <ObservationForm
+            data={observationData}
+            onDataChange={setObservationData}
+            comments={comments}
+            onCommentsChange={setComments}
+          />
         )}
 
         {/* Save */}
         {activity && (
-          <Button onClick={handleSave} className="w-full h-14 text-base font-semibold rounded-2xl gap-2 animate-fade-in-up">
-            <Save className="w-5 h-5" /> {editId ? 'Update Activity' : 'Save Activity'}
+          <Button onClick={handleSave} className="w-full h-14 text-base font-semibold rounded-2xl gap-2 animate-fade-in-up" disabled={loading}>
+            {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <><Save className="w-5 h-5" /> {editId ? 'Update Activity' : 'Save Activity'}</>}
           </Button>
         )}
       </div>

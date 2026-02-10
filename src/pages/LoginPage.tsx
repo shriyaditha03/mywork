@@ -1,27 +1,36 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Eye, EyeOff, Waves } from 'lucide-react';
+import { Eye, EyeOff, Waves, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 import logo from '@/assets/aqua-nexus-logo.png';
 
 const LoginPage = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPass, setShowPass] = useState(false);
-  const [error, setError] = useState('');
-  const { login } = useAuth();
+  const [loading, setLoading] = useState(false);
+  const { loginWithUsername } = useAuth();
   const navigate = useNavigate();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (login(username, password)) {
-      navigate('/dashboard');
+    setLoading(true);
+
+    // Legacy Login (Admin) or Standard Login
+    const result = await loginWithUsername(username, password, 'manager');
+
+    if (result.error) {
+      // Since legacy login returns success/fail inside loginWithUsername now for admin,
+      // and returns error for others if fail.
+      toast.error(result.error.message || 'Login failed');
     } else {
-      setError('Invalid credentials');
+      navigate('/dashboard');
     }
+    setLoading(false);
   };
 
   return (
@@ -29,7 +38,7 @@ const LoginPage = () => {
       <div className="w-full max-w-md bg-card rounded-2xl p-6 sm:p-8 shadow-2xl">
         <div className="flex flex-col items-center mb-8">
           <img src={logo} alt="Shrimpit Shrimp" className="w-20 h-20 rounded-2xl mb-4" />
-          <h1 className="text-2xl font-bold text-foreground">Welcome Back</h1>
+          <h1 className="text-2xl font-bold text-foreground">Manager Portal</h1>
           <p className="text-muted-foreground text-sm flex items-center gap-1">
             <Waves className="w-4 h-4" /> <span className="text-orange-500">Shrimp</span><span className="text-rose-500">it</span>
           </p>
@@ -41,7 +50,7 @@ const LoginPage = () => {
             <Input
               id="username"
               value={username}
-              onChange={e => { setUsername(e.target.value); setError(''); }}
+              onChange={e => setUsername(e.target.value)}
               placeholder="Enter username"
               className="h-12"
             />
@@ -53,7 +62,7 @@ const LoginPage = () => {
                 id="password"
                 type={showPass ? 'text' : 'password'}
                 value={password}
-                onChange={e => { setPassword(e.target.value); setError(''); }}
+                onChange={e => setPassword(e.target.value)}
                 placeholder="Enter password"
                 className="h-12 pr-12"
               />
@@ -67,16 +76,19 @@ const LoginPage = () => {
             </div>
           </div>
 
-          {error && <p className="text-destructive text-sm text-center">{error}</p>}
-
-          <Button type="submit" className="w-full h-12 text-base font-semibold">
-            Sign In
+          <Button type="submit" className="w-full h-12 text-base font-semibold" disabled={loading}>
+            {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Sign In'}
           </Button>
         </form>
 
         <p className="text-xs text-muted-foreground text-center mt-6">
           Demo: admin / admin123
         </p>
+
+        <div className="mt-8 pt-6 border-t flex justify-between text-sm">
+          <Link to="/owner/login" className="text-primary hover:underline">Owner Portal</Link>
+          <Link to="/user/login" className="text-primary hover:underline">Staff Portal</Link>
+        </div>
       </div>
     </div>
   );
