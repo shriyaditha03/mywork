@@ -1,9 +1,9 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, FileText, Loader2, Utensils, Beaker, Waves, Search, Layers, Eye, Calendar } from 'lucide-react';
+import { ArrowLeft, FileText, Loader2, Utensils, Beaker, Waves, Search, Layers, Eye, Calendar, Pencil } from 'lucide-react';
 import { useActivities } from '@/hooks/useActivities';
-import { format } from 'date-fns';
+import { formatIST, isTodayIST } from '@/lib/date-utils';
 
 const iconMap: Record<string, any> = {
     'Feed': Utensils,
@@ -31,11 +31,7 @@ const UserDailyReport = () => {
         fetchActivities();
     }, [fetchActivities]);
 
-    const today = format(new Date(), 'yyyy-MM-dd');
-    const todayActivities = activities.filter(a => {
-        const activityDate = a.created_at.split('T')[0];
-        return activityDate === today;
-    });
+    const todayActivities = activities.filter(a => isTodayIST(a.created_at));
 
     return (
         <div className="min-h-screen bg-background">
@@ -56,7 +52,7 @@ const UserDailyReport = () => {
                         <div>
                             <h1 className="text-2xl font-bold">Daily Report</h1>
                             <p className="opacity-80 flex items-center gap-1 text-sm">
-                                <Calendar className="w-3 h-3" /> {format(new Date(), 'MMMM d, yyyy')}
+                                <Calendar className="w-3 h-3" /> {formatIST(new Date(), 'eeee, dd-MM-yyyy')}
                             </p>
                         </div>
                     </div>
@@ -94,7 +90,7 @@ const UserDailyReport = () => {
                                         <div className="flex items-center justify-between gap-2 mb-1">
                                             <h3 className="font-bold text-foreground truncate">{act.activity_type}</h3>
                                             <span className="text-xs text-muted-foreground font-medium whitespace-nowrap">
-                                                {format(new Date(act.created_at), 'hh:mm a')}
+                                                {formatIST(new Date(act.created_at), 'hh:mm a')}
                                             </span>
                                         </div>
                                         <p className="text-sm font-semibold text-primary mb-1">
@@ -119,6 +115,14 @@ const UserDailyReport = () => {
                                             )}
                                         </div>
                                     </div>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => navigate(`/user/activity/${(act.activity_type || '').toLowerCase()}?edit=${act.id}`)}
+                                        className="text-muted-foreground hover:text-primary hover:bg-primary/5 h-8 w-8 self-center shrink-0"
+                                    >
+                                        <Pencil className="w-4 h-4" />
+                                    </Button>
                                 </div>
                             );
                         })}

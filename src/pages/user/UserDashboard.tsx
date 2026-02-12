@@ -32,7 +32,7 @@ const UserDashboard = () => {
 
     const handleLogout = async () => {
         await logout();
-        navigate('/user/login');
+        navigate('/login');
     };
 
     return (
@@ -82,13 +82,13 @@ const UserDashboard = () => {
                         <Button
                             key={act.name}
                             variant="outline"
-                            className="h-32 flex flex-col items-center justify-center gap-3 bg-card border-0 shadow-md hover:shadow-xl hover:bg-card/90 transition-all rounded-2xl"
+                            className="h-14 flex items-center justify-start gap-3 px-4 bg-card border shadow-sm hover:shadow-md hover:bg-card/90 transition-all rounded-xl"
                             onClick={() => navigate(act.route)}
                         >
-                            <div className={`p-3 rounded-full ${act.color}`}>
-                                <act.icon className="w-8 h-8" />
+                            <div className={`p-1.5 rounded-lg ${act.color}`}>
+                                <act.icon className="w-5 h-5" />
                             </div>
-                            <span className="font-semibold text-foreground text-sm sm:text-base text-center break-words w-full px-1">
+                            <span className="font-semibold text-foreground text-xs text-left">
                                 {act.name}
                             </span>
                         </Button>
@@ -97,13 +97,13 @@ const UserDashboard = () => {
                     {/* 7th Icon: Daily Consolidated Report */}
                     <Button
                         variant="outline"
-                        className="h-32 flex flex-col items-center justify-center gap-3 bg-card border-0 shadow-md hover:shadow-xl hover:bg-card/90 transition-all rounded-2xl"
+                        className="h-14 flex items-center justify-start gap-3 px-4 bg-card border shadow-sm hover:shadow-md hover:bg-card/90 transition-all rounded-xl"
                         onClick={() => navigate('/user/daily-report')}
                     >
-                        <div className="p-3 rounded-full bg-slate-100 text-slate-700">
-                            <FileText className="w-8 h-8" />
+                        <div className="p-1.5 rounded-lg bg-slate-100 text-slate-700">
+                            <FileText className="w-5 h-5" />
                         </div>
-                        <span className="font-semibold text-foreground text-sm sm:text-base text-center break-words w-full px-1">
+                        <span className="font-semibold text-foreground text-xs text-left">
                             Daily Report
                         </span>
                     </Button>

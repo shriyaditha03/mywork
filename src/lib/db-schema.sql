@@ -37,7 +37,7 @@ create table public.profiles (
   auth_user_id uuid references auth.users on delete set null, -- Linked Auth ID
   username text unique not null,
   full_name text,
-  role text default 'worker' check (role in ('owner', 'manager', 'technician', 'worker')),
+  role text default 'worker' check (role in ('owner', 'technician', 'worker')),
   hatchery_id uuid references public.hatcheries(id),
   email text,
   phone text,
@@ -92,7 +92,7 @@ create table public.activity_logs (
   farm_id uuid references public.farms(id),
   section_id uuid references public.sections(id),
   tank_id uuid references public.tanks(id),
-  user_id uuid references public.profiles(id),
+  user_id uuid references public.profiles(id) on delete cascade,
   activity_type text not null,
   data jsonb not null default '{}'::jsonb,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
@@ -190,18 +190,17 @@ create policy "View Own Access" on public.farm_access for select using (
   user_id = (select id from public.profiles where auth_user_id = auth.uid())
 );
 
--- ACTIVITY LOGS
--- Selection: Member of the parent hatchery
-create policy "Select Activity Logs" on public.activity_logs for select using (
+-- Insert/Update/Delete Activity Logs: User for themselves OR Owner for anyone in hatchery
+create policy "Manage Activity Logs" on public.activity_logs for all using (
+  user_id = (select id from public.profiles where auth_user_id = auth.uid())
+  OR 
+  user_id::text = 'legacy-admin-id' -- Cast to text for demo bypass
+  OR 
   exists (
     select 1 from public.profiles 
     where profiles.id = activity_logs.user_id 
-    and public.is_hatchery_member(profiles.hatchery_id)
+    and public.is_hatchery_owner(profiles.hatchery_id)
   )
-);
--- Insert: Authenticated users can record activity for themselves
-create policy "Insert Activity Logs" on public.activity_logs for insert with check (
-  user_id = (select id from public.profiles where auth_user_id = auth.uid())
 );
 
 -- 7. HELPER FUNCTION

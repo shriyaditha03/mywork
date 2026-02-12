@@ -8,7 +8,7 @@ export interface UserProfile {
   id: string;
   username: string;
   name: string;
-  role: 'owner' | 'manager' | 'technician' | 'worker';
+  role: 'owner' | 'technician' | 'worker';
   hatchery_id: string | null;
   hatchery_name?: string;
   location?: string;
@@ -20,7 +20,7 @@ interface AuthContextType {
   user: UserProfile | null;
   session: Session | null;
   loading: boolean;
-  loginWithUsername: (username: string, password: string, portalType: 'owner' | 'staff' | 'manager') => Promise<{ error: any }>;
+  loginWithUsername: (username: string, password: string) => Promise<{ error: any }>;
   logout: () => Promise<void>;
   isAuthenticated: boolean;
 }
@@ -117,7 +117,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     id: 'legacy-admin-id',
     username: 'admin',
     name: 'Rajesh Kumar',
-    role: 'manager',
+    role: 'technician',
     hatchery_id: 'legacy-hatchery',
     hatchery_name: 'Sunrise Aqua Farm',
     location: 'Nellore, Andhra Pradesh',
@@ -125,15 +125,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     phone: '+91 98765 43210',
   };
 
-  const loginWithUsername = async (username: string, password: string, portalType: 'owner' | 'staff' | 'manager') => {
+  const loginWithUsername = async (username: string, password: string) => {
     try {
       setLoading(true);
 
       // 1. Check Legacy Admin (admin/admin123)
       if (username === 'admin' && password === 'admin123') {
-        if (portalType !== 'manager') {
-          return { error: { message: 'Manager credentials only' } };
-        }
         setUser(DUMMY_USER);
         return { error: null };
       }
@@ -143,7 +140,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         .rpc('get_email_by_username', { username_input: username });
 
       if (rpcError || !email) {
-        return { error: { message: "Account doesn't exist, create one" } };
+        return { error: { message: "Account doesn't exist" } };
       }
 
       // 3. Sign in with email/password
@@ -157,34 +154,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
 
       if (authData.user) {
-        const profile = await fetchProfile(authData.user.id, authData.user.email);
-
-        if (profile) {
-          // Check role vs portal type
-          if (portalType === 'owner' && profile.role !== 'owner') {
-            await supabase.auth.signOut();
-            setUser(null);
-            return { error: { message: 'Owner credentials only' } };
-          }
-
-          if (portalType === 'staff' && profile.role === 'owner') {
-            await supabase.auth.signOut();
-            setUser(null);
-            return { error: { message: 'Staff credentials only' } };
-          }
-
-          if (portalType === 'manager' && !['manager', 'owner'].includes(profile.role)) {
-            // Managers portal allows both owners and managers? 
-            // The user said "staff credentials only should work in staff login owner in owner only staff in staff only"
-            // Let's assume Manager portal is for Managers only if we want to be strict.
-            // But the current App.tsx ManagerRoute allows manager role only (and legacy admin).
-            if (profile.role !== 'manager') {
-              await supabase.auth.signOut();
-              setUser(null);
-              return { error: { message: 'Manager credentials only' } };
-            }
-          }
-        }
+        await fetchProfile(authData.user.id, authData.user.email);
       }
 
       return { error: null };

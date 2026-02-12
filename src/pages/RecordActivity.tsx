@@ -12,6 +12,7 @@ import RatingScale from '@/components/RatingScale';
 import StockingForm from '@/components/StockingForm';
 import ObservationForm from '@/components/ObservationForm';
 import { toast } from 'sonner';
+import { formatIST, getNowIST, getTodayISTStr } from '@/lib/date-utils';
 import { useActivities } from '@/hooks/useActivities';
 
 const TANKS = ['T1', 'T2', 'T3', 'T4'];
@@ -51,18 +52,17 @@ const RecordActivity = () => {
   const [searchParams] = useSearchParams();
   const { type } = useParams();
   const editId = searchParams.get('edit');
-  const { addActivity } = useActivities();
+  const { addActivity, updateActivity } = useActivities();
 
   const [loading, setLoading] = useState(false);
   const [availableTanks, setAvailableTanks] = useState<any[]>([]);
   const [selectedFarmId, setSelectedFarmId] = useState<string>('');
+  const [selectedSectionId, setSelectedSectionId] = useState<string>('');
 
-  const now = new Date();
-  const [date, setDate] = useState(now.toISOString().split('T')[0]);
-  const [time, setTime] = useState(
-    `${String(now.getHours() % 12 || 12).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
-  );
-  const [ampm, setAmpm] = useState<'AM' | 'PM'>(now.getHours() >= 12 ? 'PM' : 'AM');
+  const now = getNowIST();
+  const [date, setDate] = useState(getTodayISTStr());
+  const [time, setTime] = useState(formatIST(now, 'hh:mm'));
+  const [ampm, setAmpm] = useState<'AM' | 'PM'>(formatIST(now, 'a') as 'AM' | 'PM');
   const [tankId, setTankId] = useState('');
   const [activity, setActivity] = useState<ActivityType | ''>('');
 
@@ -122,9 +122,68 @@ const RecordActivity = () => {
     }
   };
 
-  // Auto-select activity from URL
+  // Pre-fill data if editing
   useEffect(() => {
-    if (type) {
+    if (editId) {
+      loadActivityData();
+    }
+  }, [editId]);
+
+  const loadActivityData = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('activity_logs')
+        .select('*')
+        .eq('id', editId)
+        .single();
+
+      if (error) throw error;
+      if (data) {
+        setDate(data.data.date || formatIST(data.created_at, 'yyyy-MM-dd'));
+        setTime(data.data.time || formatIST(data.created_at, 'hh:mm'));
+        setAmpm(data.data.ampm || (formatIST(data.created_at, 'a') as 'AM' | 'PM'));
+        setTankId(data.tank_id);
+        setSelectedSectionId(data.section_id || '');
+        setSelectedFarmId(data.farm_id || '');
+        setComments(data.data.comments || '');
+
+        // Pre-fill activity specific fields
+        const actType = data.activity_type;
+        setActivity(actType as ActivityType);
+
+        if (actType === 'Feed') {
+          setFeedType(data.data.feedType || '');
+          setFeedQty(data.data.feedQty || '');
+          setFeedUnit(data.data.feedUnit || 'kg');
+        } else if (actType === 'Treatment') {
+          setTreatmentType(data.data.treatmentType || '');
+          setTreatmentDosage(data.data.treatmentDosage || '');
+          setTreatmentUnit(data.data.treatmentUnit || 'ml');
+        } else if (actType === 'Water Quality') {
+          setWaterData(data.data.waterData || {});
+        } else if (actType === 'Animal Quality') {
+          setAnimalSize(data.data.animalSize || '');
+          setAnimalRatings(data.data.animalRatings || {});
+          setDiseaseSymptoms(data.data.diseaseSymptoms || '');
+          setOtherAnimal(data.data.otherAnimal || '');
+        } else if (actType === 'Stocking') {
+          setStockingData(data.data);
+        } else if (actType === 'Observation') {
+          setObservationData(data.data);
+        }
+      }
+    } catch (err) {
+      console.error('Error loading activity:', err);
+      toast.error('Failed to load activity details');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Auto-select activity from URL (if not editing)
+  useEffect(() => {
+    if (type && !editId) {
       const map: Record<string, ActivityType> = {
         'feed': 'Feed',
         'treatment': 'Treatment',
@@ -137,7 +196,7 @@ const RecordActivity = () => {
         setActivity(map[type.toLowerCase()]);
       }
     }
-  }, [type]);
+  }, [type, editId]);
 
   // Feed fields
   const [feedType, setFeedType] = useState('');
@@ -184,33 +243,45 @@ const RecordActivity = () => {
     }
 
     let selectedTank: any = null;
-    let selectedSectionId: string = '';
-    let selectedFarmId: string = '';
+    let farmId = selectedFarmId;
+    let sectionId = selectedSectionId;
 
     for (const section of availableTanks) {
       const tank = section.tanks.find((t: any) => t.id === tankId);
       if (tank) {
         selectedTank = tank;
-        selectedSectionId = section.id;
-        selectedFarmId = section.farm_id;
+        sectionId = section.id;
+        farmId = section.farm_id;
         break;
       }
     }
 
-    if (!selectedTank) return;
+    if (!selectedTank && !editId) return; // Allow update if we have IDs from state
 
     try {
       setLoading(true);
-      await addActivity({
-        tank_id: tankId,
-        section_id: selectedSectionId,
-        farm_id: selectedFarmId,
-        activity_type: activity,
-        data: buildData()
-      });
+      if (editId) {
+        await updateActivity(editId, {
+          tank_id: tankId,
+          section_id: sectionId || undefined,
+          farm_id: farmId || undefined,
+          activity_type: activity,
+          data: buildData()
+        });
+        toast.success('Activity updated!');
+      } else {
+        await addActivity({
+          tank_id: tankId,
+          section_id: sectionId || undefined,
+          farm_id: farmId || undefined,
+          activity_type: activity,
+          data: buildData()
+        });
+        toast.success('Activity recorded!');
+      }
 
-      toast.success('Activity recorded successfully!');
-      setTimeout(() => navigate('/dashboard'), 1500);
+      const target = user?.role === 'owner' ? '/owner/dashboard' : '/user/dashboard';
+      setTimeout(() => navigate(target), 1500);
     } catch (err: any) {
       console.error(err);
       toast.error(err.message || "Failed to save activity");
@@ -227,7 +298,10 @@ const RecordActivity = () => {
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => navigate('/dashboard')}
+            onClick={() => {
+              const target = user?.role === 'owner' ? '/owner/dashboard' : '/user/dashboard';
+              navigate(target);
+            }}
             className="text-primary-foreground hover:bg-primary-foreground/10"
           >
             <ArrowLeft className="w-5 h-5" />
@@ -267,7 +341,9 @@ const RecordActivity = () => {
 
         {/* Tank & Activity */}
         <div className="glass-card rounded-2xl p-4 space-y-4">
-          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Tank & Activity</h2>
+          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+            {type ? 'Select Tank' : 'Tank & Activity'}
+          </h2>
           <div className="space-y-1.5">
             <Label className="text-xs">Select Tank *</Label>
             <Select value={tankId} onValueChange={setTankId}>
@@ -290,21 +366,23 @@ const RecordActivity = () => {
               </SelectContent>
             </Select>
           </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs">Activity Type *</Label>
-            <Select
-              value={activity}
-              onValueChange={v => setActivity(v as ActivityType)}
-              disabled={!!type} // Disable if type is passed in URL
-            >
-              <SelectTrigger className="h-11">
-                <SelectValue placeholder="Choose activity" />
-              </SelectTrigger>
-              <SelectContent>
-                {ACTIVITIES.map(a => <SelectItem key={a} value={a}>{a}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
+
+          {!type && (
+            <div className="space-y-1.5">
+              <Label className="text-xs">Activity Type *</Label>
+              <Select
+                value={activity}
+                onValueChange={v => setActivity(v as ActivityType)}
+              >
+                <SelectTrigger className="h-11">
+                  <SelectValue placeholder="Choose activity" />
+                </SelectTrigger>
+                <SelectContent>
+                  {ACTIVITIES.map(a => <SelectItem key={a} value={a}>{a}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
         </div>
 
         {/* Dynamic Form */}

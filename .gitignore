@@ -30,3 +30,6 @@ dist-ssr
 .env.development
 .env.production
 .env.production.local
+
+*.timestamp-*.mjs
+.vercel

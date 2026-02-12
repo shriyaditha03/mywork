@@ -18,7 +18,7 @@ const AddUser = () => {
 
     const [formData, setFormData] = useState({
         username: '',
-        role: 'worker',
+        password: '',
         selectedFarms: [] as string[],
     });
 
@@ -48,28 +48,106 @@ const AddUser = () => {
         e.preventDefault();
         if (!user?.hatchery_id) return;
 
+        if (!formData.username.trim() || !formData.password.trim() || formData.selectedFarms.length === 0) {
+            toast.error("Please fill in all fields and select at least one farm");
+            return;
+        }
+
+        if (formData.password.length < 6) {
+            toast.error("Password must be at least 6 characters");
+            return;
+        }
+
         try {
             setLoading(true);
 
-            // 1. Create Profile (Placeholder)
-            const { data: profileData, error: profileError } = await supabase
+            // 1. Create Auth User using a secondary client (to not log out current owner)
+            // Note: We need the URL and Anon Key from env
+            const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+            const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+            // Create a temporary client just for this signup with persistence disabled
+            // to prevent overwriting the current owner's session
+            const { createClient } = await import('@supabase/supabase-js');
+            const tempClient = createClient(supabaseUrl, supabaseAnonKey, {
+                auth: {
+                    persistSession: false,
+                    autoRefreshToken: false,
+                    detectSessionInUrl: false
+                }
+            });
+
+            const emailToUse = `${formData.username.toLowerCase().replace(/\s+/g, '')}@shrimpit.local`;
+
+            const { data: authData, error: authError } = await tempClient.auth.signUp({
+                email: emailToUse,
+                password: formData.password,
+            });
+
+            if (authError) throw authError;
+            if (!authData.user) throw new Error("Auth user creation failed");
+
+            // 2. Activate profile via RPC
+            const { data: wasClaimed, error: claimError } = await supabase
+                .rpc('activate_user_profile', {
+                    username_input: formData.username.trim(),
+                    user_id_input: authData.user.id,
+                    email_input: emailToUse
+                });
+
+            // If the profile doesn't exist yet, we create it.
+            // In the previous logic, the profile might have been pre-created.
+            // Let's ensure it exists with the right role.
+
+            const { data: existingProfile } = await supabase
                 .from('profiles')
-                .insert([{
-                    username: formData.username.trim(),
-                    role: formData.role,
-                    hatchery_id: user.hatchery_id,
-                    full_name: formData.username, // Default
-                    // auth_user_id is NULL initially
-                }])
-                .select()
-                .single();
+                .select('id')
+                .eq('username', formData.username.trim())
+                .maybeSingle();
 
-            if (profileError) throw profileError;
+            let targetProfileId;
 
-            // 2. Assign Farm Access
+            if (existingProfile) {
+                const { error: updateError } = await supabase
+                    .from('profiles')
+                    .update({
+                        auth_user_id: authData.user.id,
+                        email: emailToUse,
+                        role: 'worker',
+                        hatchery_id: user.hatchery_id
+                    })
+                    .eq('username', formData.username.trim());
+
+                if (updateError) throw updateError;
+                targetProfileId = existingProfile.id;
+            } else {
+                const { data: newProfile, error: profileError } = await supabase
+                    .from('profiles')
+                    .insert([{
+                        username: formData.username.trim(),
+                        role: 'worker',
+                        hatchery_id: user.hatchery_id,
+                        full_name: formData.username,
+                        auth_user_id: authData.user.id,
+                        email: emailToUse
+                    }])
+                    .select()
+                    .single();
+
+                if (profileError) throw profileError;
+                targetProfileId = newProfile.id;
+            }
+
+            // 3. Assign Farm Access (Sync selection)
+            // First, clear existing access if any (prevents duplicate key errors)
+            await supabase
+                .from('farm_access')
+                .delete()
+                .eq('user_id', targetProfileId);
+
             if (formData.selectedFarms.length > 0) {
                 const accessData = formData.selectedFarms.map(farmId => ({
-                    user_id: profileData.id,
+                    user_id: targetProfileId,
                     farm_id: farmId
                 }));
 
@@ -80,12 +158,12 @@ const AddUser = () => {
                 if (accessError) throw accessError;
             }
 
-            toast.success(`User "${formData.username}" added successfully!`);
+            toast.success(`User "${formData.username}" created successfully!`);
             navigate('/owner/dashboard');
 
         } catch (error: any) {
             console.error(error);
-            toast.error(error.message || "Failed to add user");
+            toast.error(error.message || "Failed to create user");
         } finally {
             setLoading(false);
         }
@@ -105,7 +183,7 @@ const AddUser = () => {
 
                 <form onSubmit={handleSubmit} className="space-y-6 bg-card p-6 rounded-2xl shadow-sm border">
                     <div className="space-y-2">
-                        <Label htmlFor="username">Username</Label>
+                        <Label htmlFor="username">Username *</Label>
                         <Input
                             id="username"
                             value={formData.username}
@@ -113,24 +191,23 @@ const AddUser = () => {
                             placeholder="e.g. farm_worker_1"
                             required
                         />
-                        <p className="text-xs text-muted-foreground">User will claim this username on signup</p>
                     </div>
 
                     <div className="space-y-2">
-                        <Label>Role</Label>
-                        <Select value={formData.role} onValueChange={(val) => setFormData({ ...formData, role: val })}>
-                            <SelectTrigger>
-                                <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="manager">Manager</SelectItem>
-                                <SelectItem value="worker">Worker</SelectItem>
-                            </SelectContent>
-                        </Select>
+                        <Label htmlFor="password">Set Password *</Label>
+                        <Input
+                            id="password"
+                            type="password"
+                            value={formData.password}
+                            onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                            placeholder="Min. 6 characters"
+                            required
+                        />
                     </div>
 
+
                     <div className="space-y-3">
-                        <Label>Assign Farm Access</Label>
+                        <Label>Assign Farm Access *</Label>
                         {farms.length === 0 ? (
                             <p className="text-sm text-yellow-600">No farms created yet.</p>
                         ) : (

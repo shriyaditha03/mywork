@@ -41,7 +41,7 @@ export function useActivities() {
         .from('activity_logs')
         .select(`
           *,
-          profiles!inner(username),
+          profiles(username),
           tanks(
             name,
             sections(name)
@@ -83,5 +83,53 @@ export function useActivities() {
     return data.id;
   }, [user]);
 
-  return { activities, loading, fetchActivities, addActivity };
+  const updateActivity = useCallback(async (id: string, record: {
+    tank_id?: string;
+    section_id?: string;
+    farm_id?: string;
+    activity_type: string;
+    data: any;
+  }) => {
+    if (!user) throw new Error("Unauthenticated");
+
+    const { data, error } = await supabase
+      .from('activity_logs')
+      .update(record)
+      .eq('id', id)
+      .select(`
+        *,
+        profiles(username),
+        tanks(
+          name,
+          sections(name)
+        ),
+        sections(name),
+        farms(name)
+      `);
+
+    if (error) {
+      console.error('Update activity error:', error);
+      throw error;
+    }
+
+    if (!data || data.length === 0) {
+      throw new Error("Update failed: You might not have permission to edit this record or it doesn't exist.");
+    }
+
+    const updatedRecord = data[0];
+    setActivities(prev => prev.map(a => a.id === id ? updatedRecord : a));
+    return updatedRecord.id;
+  }, [user]);
+
+  const deleteActivity = useCallback(async (id: string) => {
+    const { error } = await supabase
+      .from('activity_logs')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+    setActivities(prev => prev.filter(a => a.id !== id));
+  }, []);
+
+  return { activities, loading, fetchActivities, addActivity, updateActivity, deleteActivity };
 }

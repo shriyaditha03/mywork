@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -13,34 +13,45 @@ const LoginPage = () => {
   const [password, setPassword] = useState('');
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
-  const { loginWithUsername } = useAuth();
+  const { loginWithUsername, user } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
-    // Legacy Login (Admin) or Standard Login
-    const result = await loginWithUsername(username, password, 'manager');
+    const result = await loginWithUsername(username, password);
 
     if (result.error) {
-      // Since legacy login returns success/fail inside loginWithUsername now for admin,
-      // and returns error for others if fail.
       toast.error(result.error.message || 'Login failed');
+      setLoading(false);
     } else {
-      navigate('/dashboard');
+      // Redirect based on role logic happens here if not handled by useEffect
+      // However, fetchProfile updates 'user' state, so we can check it in a useEffect 
+      // or here if we have the result from fetchProfile.
+      // Let's rely on the useEffect for cleaner navigation after state update.
     }
-    setLoading(false);
   };
+
+  // Improved redirection logic
+  useEffect(() => {
+    if (user) {
+      if (user.role === 'owner') {
+        navigate('/owner/dashboard');
+      } else {
+        navigate('/user/dashboard');
+      }
+    }
+  }, [user, navigate]);
 
   return (
     <div className="min-h-screen ocean-gradient flex items-center justify-center p-4">
       <div className="w-full max-w-md bg-card rounded-2xl p-6 sm:p-8 shadow-2xl">
         <div className="flex flex-col items-center mb-8">
-          <img src={logo} alt="Shrimpit Shrimp" className="w-20 h-20 rounded-2xl mb-4" />
-          <h1 className="text-2xl font-bold text-foreground">Manager Portal</h1>
+          <img src={logo} alt="AquaNexus" className="w-20 h-20 rounded-2xl mb-4" />
+          <h1 className="text-2xl font-bold text-foreground">AquaNexus Login</h1>
           <p className="text-muted-foreground text-sm flex items-center gap-1">
-            <Waves className="w-4 h-4" /> <span className="text-orange-500">Shrimp</span><span className="text-rose-500">it</span>
+            <Waves className="w-4 h-4" /> <span>Intelligent Aquaculture</span>
           </p>
         </div>
 
@@ -53,6 +64,7 @@ const LoginPage = () => {
               onChange={e => setUsername(e.target.value)}
               placeholder="Enter username"
               className="h-12"
+              required
             />
           </div>
           <div className="space-y-2">
@@ -65,6 +77,7 @@ const LoginPage = () => {
                 onChange={e => setPassword(e.target.value)}
                 placeholder="Enter password"
                 className="h-12 pr-12"
+                required
               />
               <button
                 type="button"
@@ -82,12 +95,11 @@ const LoginPage = () => {
         </form>
 
         <p className="text-xs text-muted-foreground text-center mt-6">
-          Demo: admin / admin123
+          System Access for Owners and Staff
         </p>
 
-        <div className="mt-8 pt-6 border-t flex justify-between text-sm">
-          <Link to="/owner/login" className="text-primary hover:underline">Owner Portal</Link>
-          <Link to="/user/login" className="text-primary hover:underline">Staff Portal</Link>
+        <div className="mt-8 pt-6 border-t text-center">
+          <Link to="/owner/signup" className="text-sm text-primary hover:underline">Register Hatchery (Owner Only)</Link>
         </div>
       </div>
     </div>

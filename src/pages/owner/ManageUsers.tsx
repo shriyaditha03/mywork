@@ -3,8 +3,17 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Trash2, User, UserPlus, ShieldAlert } from 'lucide-react';
+import { ArrowLeft, Trash2, User, UserPlus, ShieldAlert, Key, Loader2, Check } from 'lucide-react';
 import { toast } from 'sonner';
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogFooter,
+} from "@/components/ui/dialog";
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -29,7 +38,14 @@ const ManageUsers = () => {
     const navigate = useNavigate();
     const { user } = useAuth();
     const [users, setUsers] = useState<UserProfile[]>([]);
+    const [farms, setFarms] = useState<any[]>([]);
+    const [userAccess, setUserAccess] = useState<Record<string, string[]>>({});
     const [loading, setLoading] = useState(true);
+    const [actionLoading, setActionLoading] = useState(false);
+
+    const [isAccessDialogOpen, setIsAccessDialogOpen] = useState(false);
+    const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
+    const [selectedFarms, setSelectedFarms] = useState<string[]>([]);
 
     useEffect(() => {
         if (user?.hatchery_id) {
@@ -39,15 +55,40 @@ const ManageUsers = () => {
 
     const fetchUsers = async () => {
         try {
-            const { data, error } = await supabase
+            setLoading(true);
+            // 1. Fetch Users
+            const { data: profiles, error: profileError } = await supabase
                 .from('profiles')
                 .select('*')
                 .eq('hatchery_id', user!.hatchery_id)
-                .neq('role', 'owner') // Don't show owner to prevent self-delete
+                .neq('role', 'owner')
                 .order('created_at', { ascending: false });
 
-            if (error) throw error;
-            setUsers(data || []);
+            if (profileError) throw profileError;
+            setUsers(profiles || []);
+
+            // 2. Fetch all Farms for this hatchery
+            const { data: hatcheryFarms } = await supabase
+                .from('farms')
+                .select('id, name')
+                .eq('hatchery_id', user!.hatchery_id);
+            setFarms(hatcheryFarms || []);
+
+            // 3. Fetch all farm access for these users
+            const userIds = profiles?.map(p => p.id) || [];
+            if (userIds.length > 0) {
+                const { data: access } = await supabase
+                    .from('farm_access')
+                    .select('user_id, farm_id')
+                    .in('user_id', userIds);
+
+                const accessMap: Record<string, string[]> = {};
+                access?.forEach(a => {
+                    if (!accessMap[a.user_id]) accessMap[a.user_id] = [];
+                    accessMap[a.user_id].push(a.farm_id);
+                });
+                setUserAccess(accessMap);
+            }
         } catch (error) {
             console.error('Error fetching users:', error);
             toast.error('Failed to load users');
@@ -56,8 +97,63 @@ const ManageUsers = () => {
         }
     };
 
+    const handleOpenAccessDialog = (u: UserProfile) => {
+        setEditingUser(u);
+        setSelectedFarms(userAccess[u.id] || []);
+        setIsAccessDialogOpen(true);
+    };
+
+    const handleSaveAccess = async () => {
+        if (!editingUser) return;
+        try {
+            setActionLoading(true);
+
+            // 1. Delete existing access
+            const { error: deleteError } = await supabase
+                .from('farm_access')
+                .delete()
+                .eq('user_id', editingUser.id);
+            if (deleteError) throw deleteError;
+
+            // 2. Insert new access
+            if (selectedFarms.length > 0) {
+                const accessData = selectedFarms.map(farmId => ({
+                    user_id: editingUser.id,
+                    farm_id: farmId
+                }));
+                const { error: insertError } = await supabase
+                    .from('farm_access')
+                    .insert(accessData);
+                if (insertError) throw insertError;
+            }
+
+            // 3. Update local state
+            setUserAccess(prev => ({
+                ...prev,
+                [editingUser.id]: selectedFarms
+            }));
+
+            toast.success(`Access updated for ${editingUser.username}`);
+            setIsAccessDialogOpen(false);
+        } catch (error: any) {
+            console.error('Save access error:', error);
+            toast.error(error.message || 'Failed to update access');
+        } finally {
+            setActionLoading(false);
+        }
+    };
+
     const handleDelete = async (userId: string, username: string) => {
         try {
+            // 1. Delete associated activity logs first (to avoid foreign key constraint errors)
+            const { error: logsError } = await supabase
+                .from('activity_logs')
+                .delete()
+                .eq('user_id', userId);
+
+            if (logsError) throw logsError;
+
+            // 2. Delete the profile (farm_access is set to CASCADE in DB)
             const { error } = await supabase
                 .from('profiles')
                 .delete()
@@ -112,43 +208,123 @@ const ManageUsers = () => {
                                             <p className="font-medium">{u.username}</p>
                                             <div className="flex items-center gap-2 text-xs text-muted-foreground">
                                                 <span className="capitalize px-2 py-0.5 bg-secondary rounded-full border">{u.role}</span>
-                                                {u.auth_user_id ? (
-                                                    <span className="text-green-600 flex items-center gap-1">● Active</span>
-                                                ) : (
-                                                    <span className="text-yellow-600 flex items-center gap-1">○ Pending Activation</span>
-                                                )}
+                                                <span className="text-green-600 flex items-center gap-1">● Active</span>
                                             </div>
                                         </div>
                                     </div>
 
-                                    <AlertDialog>
-                                        <AlertDialogTrigger asChild>
-                                            <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive hover:bg-destructive/10">
-                                                <Trash2 className="w-5 h-5" />
-                                            </Button>
-                                        </AlertDialogTrigger>
-                                        <AlertDialogContent>
-                                            <AlertDialogHeader>
-                                                <AlertDialogTitle>Remove User?</AlertDialogTitle>
-                                                <AlertDialogDescription>
-                                                    Are you sure you want to remove <strong>{u.username}</strong>?
-                                                    This action cannot be undone. They will lose access immediately.
-                                                </AlertDialogDescription>
-                                            </AlertDialogHeader>
-                                            <AlertDialogFooter>
-                                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                <AlertDialogAction onClick={() => handleDelete(u.id, u.username)} className="bg-destructive hover:bg-destructive/90">
-                                                    Remove User
-                                                </AlertDialogAction>
-                                            </AlertDialogFooter>
-                                        </AlertDialogContent>
-                                    </AlertDialog>
+                                    <div className="flex gap-2">
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            onClick={() => handleOpenAccessDialog(u)}
+                                            className="text-primary hover:text-primary hover:bg-primary/10"
+                                        >
+                                            <Key className="w-5 h-5" />
+                                        </Button>
+
+                                        <AlertDialog>
+                                            <AlertDialogTrigger asChild>
+                                                <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive hover:bg-destructive/10">
+                                                    <Trash2 className="w-5 h-5" />
+                                                </Button>
+                                            </AlertDialogTrigger>
+                                            <AlertDialogContent>
+                                                <AlertDialogHeader>
+                                                    <AlertDialogTitle>Remove User?</AlertDialogTitle>
+                                                    <AlertDialogDescription>
+                                                        Are you sure you want to remove <strong>{u.username}</strong>?
+                                                        This action cannot be undone. They will lose access immediately.
+                                                    </AlertDialogDescription>
+                                                </AlertDialogHeader>
+                                                <AlertDialogFooter>
+                                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                    <AlertDialogAction onClick={() => handleDelete(u.id, u.username)} className="bg-destructive hover:bg-destructive/90">
+                                                        Remove User
+                                                    </AlertDialogAction>
+                                                </AlertDialogFooter>
+                                            </AlertDialogContent>
+                                        </AlertDialog>
+                                    </div>
                                 </div>
                             ))}
                         </div>
                     </div>
                 )}
             </div>
+
+            {/* Edit Access Dialog */}
+            <Dialog open={isAccessDialogOpen} onOpenChange={setIsAccessDialogOpen}>
+                <DialogContent className="max-w-sm rounded-2xl">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <Key className="w-5 h-5 text-primary" />
+                            Manage Farm Access
+                        </DialogTitle>
+                    </DialogHeader>
+                    <div className="py-4 space-y-4">
+                        <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-xl">
+                            <div className="w-10 h-10 rounded-full bg-background flex items-center justify-center border">
+                                <User className="w-5 h-5 text-muted-foreground" />
+                            </div>
+                            <div>
+                                <p className="text-sm font-bold">{editingUser?.username}</p>
+                                <p className="text-[10px] uppercase text-muted-foreground font-bold tracking-wider">{editingUser?.role}</p>
+                            </div>
+                        </div>
+
+                        <div className="space-y-3">
+                            <Label className="text-xs font-bold uppercase text-muted-foreground tracking-widest pl-1">Assign Farms</Label>
+                            {farms.length === 0 ? (
+                                <p className="text-sm text-yellow-600 p-2 bg-yellow-50 rounded-lg border border-yellow-100 italic text-center">No farms created yet.</p>
+                            ) : (
+                                <div className="grid gap-2 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                                    {farms.map(farm => (
+                                        <div
+                                            key={farm.id}
+                                            className={`flex items-center space-x-3 p-3 rounded-xl border transition-all cursor-pointer ${selectedFarms.includes(farm.id)
+                                                    ? 'bg-primary/5 border-primary/20 ring-1 ring-primary/10'
+                                                    : 'hover:bg-accent border-transparent'
+                                                }`}
+                                            onClick={() => {
+                                                setSelectedFarms(prev =>
+                                                    prev.includes(farm.id)
+                                                        ? prev.filter(id => id !== farm.id)
+                                                        : [...prev, farm.id]
+                                                );
+                                            }}
+                                        >
+                                            <Checkbox
+                                                id={`farm-${farm.id}`}
+                                                checked={selectedFarms.includes(farm.id)}
+                                                onCheckedChange={() => { }} // Handled by div click
+                                                className="data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+                                            />
+                                            <label
+                                                htmlFor={`farm-${farm.id}`}
+                                                className="text-sm font-semibold flex-1 cursor-pointer"
+                                            >
+                                                {farm.name}
+                                            </label>
+                                            {selectedFarms.includes(farm.id) && (
+                                                <Check className="w-4 h-4 text-primary" />
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                    <DialogFooter className="flex flex-col sm:flex-row gap-2 pt-2">
+                        <Button variant="outline" onClick={() => setIsAccessDialogOpen(false)} disabled={actionLoading} className="rounded-xl h-12 order-2 sm:order-1">
+                            Cancel
+                        </Button>
+                        <Button onClick={handleSaveAccess} disabled={actionLoading} className="rounded-xl h-12 shadow-lg shadow-primary/20 order-1 sm:order-2">
+                            {actionLoading ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : "Save Permissions"}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 };

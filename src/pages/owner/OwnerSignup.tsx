@@ -97,7 +97,7 @@ const OwnerSignup = () => {
             }
 
             toast.success("Hatchery Owner Account Created!");
-            navigate('/owner/login');
+            navigate('/login');
 
         } catch (error: any) {
             console.error(error);
@@ -113,7 +113,7 @@ const OwnerSignup = () => {
                 <div className="flex flex-col items-center mb-6">
                     <div className="flex items-center gap-2 mb-2">
                         <Waves className="w-6 h-6 text-primary" />
-                        <span className="text-xl font-bold"><span className="text-orange-500">Shrimp</span><span className="text-rose-500">it</span></span>
+                        <span className="text-xl font-bold">AquaNexus</span>
                     </div>
                     <h1 className="text-2xl font-bold text-foreground">Owner Registration</h1>
                     <p className="text-muted-foreground text-sm">Create your Hatchery Account</p>
@@ -181,7 +181,7 @@ const OwnerSignup = () => {
                     </Button>
 
                     <div className="text-center mt-4">
-                        <Link to="/owner/login" className="text-sm text-primary hover:underline">
+                        <Link to="/login" className="text-sm text-primary hover:underline">
                             Already have an account? Login
                         </Link>
                     </div>
