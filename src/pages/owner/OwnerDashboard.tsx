@@ -22,17 +22,17 @@ const OwnerDashboard = () => {
     if (!user) return null;
 
     const activities = [
-        { name: 'Feed', icon: Utensils, route: '/owner/activity/feed', color: 'bg-orange-100 text-orange-600' },
-        { name: 'Treatment', icon: Beaker, route: '/owner/activity/treatment', color: 'bg-blue-100 text-blue-600' },
-        { name: 'Water Quality', icon: Waves, route: '/owner/activity/water', color: 'bg-cyan-100 text-cyan-600' },
-        { name: 'Animal Quality', icon: Search, route: '/owner/activity/animal', color: 'bg-rose-100 text-rose-600' },
-        { name: 'Stocking', icon: Layers, route: '/owner/activity/stocking', color: 'bg-emerald-100 text-emerald-600' },
-        { name: 'Observation', icon: Eye, route: '/owner/activity/observation', color: 'bg-purple-100 text-purple-600' },
+        { name: 'Feed', icon: Utensils, route: '/owner/reports/feed', color: 'bg-orange-100 text-orange-600' },
+        { name: 'Treatment', icon: Beaker, route: '/owner/reports/treatment', color: 'bg-blue-100 text-blue-600' },
+        { name: 'Water Quality', icon: Waves, route: '/owner/reports/water', color: 'bg-cyan-100 text-cyan-600' },
+        { name: 'Animal Quality', icon: Search, route: '/owner/reports/animal', color: 'bg-rose-100 text-rose-600' },
+        { name: 'Stocking', icon: Layers, route: '/owner/reports/stocking', color: 'bg-emerald-100 text-emerald-600' },
+        { name: 'Observation', icon: Eye, route: '/owner/reports/observation', color: 'bg-purple-100 text-purple-600' },
     ];
 
     const handleLogout = async () => {
         await logout();
-        navigate('/owner/login');
+        navigate('/login');
     };
 
     return (
@@ -56,20 +56,14 @@ const OwnerDashboard = () => {
                         <DropdownMenuContent align="end" className="w-56">
                             <DropdownMenuLabel>My Account</DropdownMenuLabel>
                             <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={() => navigate('/owner/farms')}>
+                                <Warehouse className="mr-2 h-4 w-4" /> Manage Farms
+                            </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => navigate('/owner/manage-users')}>
                                 <Users className="mr-2 h-4 w-4" /> Manage Users
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => navigate('/owner/profile')}>
                                 <User className="mr-2 h-4 w-4" /> Personal Info
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => navigate('/owner/farms')}>
-                                <Warehouse className="mr-2 h-4 w-4" /> My Farms
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => navigate('/owner/create-farm')}>
-                                <PlusCircle className="mr-2 h-4 w-4" /> Create Farm
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => navigate('/owner/add-user')}>
-                                <UserPlus className="mr-2 h-4 w-4" /> Add User
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem onClick={handleLogout} className="text-red-600">
@@ -94,31 +88,18 @@ const OwnerDashboard = () => {
                         <Button
                             key={act.name}
                             variant="outline"
-                            className="h-32 flex flex-col items-center justify-center gap-3 bg-card border-0 shadow-md hover:shadow-xl hover:bg-card/90 transition-all rounded-2xl"
+                            className="h-14 flex items-center justify-start gap-3 px-4 bg-card border shadow-sm hover:shadow-md hover:bg-card/90 transition-all rounded-xl"
                             onClick={() => navigate(act.route)}
                         >
-                            <div className={`p-3 rounded-full ${act.color}`}>
-                                <act.icon className="w-8 h-8" />
+                            <div className={`p-1.5 rounded-lg ${act.color}`}>
+                                <act.icon className="w-5 h-5" />
                             </div>
-                            <span className="font-semibold text-foreground text-sm sm:text-base text-center break-words w-full px-1">
+                            <span className="font-semibold text-foreground text-xs text-left">
                                 {act.name}
                             </span>
                         </Button>
                     ))}
 
-                    {/* 7th Icon: Add User */}
-                    <Button
-                        variant="outline"
-                        className="h-32 flex flex-col items-center justify-center gap-3 bg-card border-0 shadow-md hover:shadow-xl hover:bg-card/90 transition-all rounded-2xl"
-                        onClick={() => navigate('/owner/add-user')}
-                    >
-                        <div className="p-3 rounded-full bg-slate-100 text-slate-700">
-                            <UserPlus className="w-8 h-8" />
-                        </div>
-                        <span className="font-semibold text-foreground text-sm sm:text-base text-center break-words w-full px-1">
-                            Add User
-                        </span>
-                    </Button>
 
                 </div>
             </div>
